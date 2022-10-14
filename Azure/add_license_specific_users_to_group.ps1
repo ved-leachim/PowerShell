@@ -22,12 +22,8 @@ $Today = Get-Date -Format "yyyy-MM-dd"
 #---------------------Variables to Change---------------------#
 $LogFilePath = "./Logs/License Users Added to Group - $Today.log"
 $ReportFilePath = "./Reports/License Users Added to Group - $Today.csv"
-$LicenseSKUId = '46974aed-363e-423c-9e6a-951037cec495'
-$GroupId = 'ac48344d-0efa-4a17-adf7-9f5cb1b924f9'
-# $ProjectPlan3 = '46974aed-363e-423c-9e6a-951037cec495'
-# $VisioPlan2 = 'bf95fd32-576a-4742-8d7a-6dc4940b9532'
-# $ProjectGroup = 'ac48344d-0efa-4a17-adf7-9f5cb1b924f9'
-# $VisioGroup = '4324ad5f-a4cd-4500-bf33-4d2c4228c387'
+$LicenseSKUId = 'LICENSESKUID'
+$GroupId = 'GROUPID'
 #-------------------------------------------------------------#
 function Write-Log {
   Param(
@@ -92,7 +88,7 @@ function Add-UsersToGroup {
 
   foreach ($User in $UserList) {
 
-    # This is somehow need because Graph writes into $UsersList[0] and $UsersList[1]
+    # This is somehow needed because Graph writes into $UsersList[0] and $UsersList[1]
     $i++
     if ($i -le 2) {
       continue
