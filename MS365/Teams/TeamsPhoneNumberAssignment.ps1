@@ -23,6 +23,7 @@
 $LicenseGroupID = "<GroupObjectId>"
 $TelephonyGroupID = "<GroupObjectID>"
 $UCCUser = "<AutomationUser>"
+$PolicyName = "<PolicyName>"
 
 # Teams Hooks
 [string]$TeamsInfoHook = "<Incoming Webhook URI>"
@@ -120,7 +121,7 @@ If ( $UsersToEnable ) {
       $LineUri = $_.TelephoneNumber.Replace(" ", "")
       If ( $LineUri -match "^[+]\d{11}$" ) {
         Set-CsPhoneNumberAssignment -Identity $_.UserPrincipalName -PhoneNumber $LineUri -PhoneNumberType DirectRouting -ErrorAction:Stop
-        Grant-CsOnlineVoiceRoutingPolicy -Identity $_.UserPrincipalName -PolicyName "SwisscomET4T"
+        Grant-CsOnlineVoiceRoutingPolicy -Identity $_.UserPrincipalName -PolicyName $PolicyName
         New-MgGroupMember -GroupId $TelephonyGroupID -DirectoryObjectId $_.Id
         Write-Output "Assigned number $LineUri to $($_.UserPrincipalName)"
         (Write-BasicAdaptiveCard $TeamsInfoHook "Assigned number $LineUri to $($_.UserPrincipalName)")
@@ -131,7 +132,8 @@ If ( $UsersToEnable ) {
       }
     }
     catch {
-      Write-Error "User $($UserToEnable.UserPrincipalName) could not be enabled." $_.exception
+      Write-Error -Message $UserToEnable
+      Write-Error -Message "User $($UserToEnable.UserPrincipalName) could not be enabled. | Error-Message: $($_.exception)"
       (Write-BasicAdaptiveCard $TeamsErrorHook "User $($UserToEnable.UserPrincipalName) could not be enabled." $_.exception)
     }
   }
