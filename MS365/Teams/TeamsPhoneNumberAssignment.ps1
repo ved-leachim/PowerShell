@@ -3,14 +3,15 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        03.11.2022
+# Version:     1.0.1
+# Date:        01.12.2022
 #
 # Description:
 # Enables telephony for Microsoft Teams and assigns number according to the AD user object.
 #
 # Verions:
 # 1.0.0 - Script creation
+# 1.0.1 - Fix that if one nr assignment fails, not the whole script stopps & improved logging
 #
 # Dependencies:
 # Microsoft PowerShell Graph SDK
@@ -40,8 +41,12 @@ Function Write-BasicAdaptiveCard {
   )
   New-AdaptiveCard -Uri $ChannelHookURI -VerticalContentAlignment center {
     New-AdaptiveContainer {
-      New-AdaptiveTextBlock -Text $Message -Size Medium
-      New-AdaptiveTextBlock -Text $ErrorMessage -Size Medium -Color Attention -MaximumLines 10 -Verbose
+      New-AdaptiveColumnSet {
+        New-AdaptiveColumn {
+          New-AdaptiveTextBlock -Text $Message -Size Medium
+          New-AdaptiveTextBlock -Text $ErrorMessage -Size Medium -Color Attention -MaximumLines 10 -Verbose
+        } -Width Auto
+      }
     }
   }
 }
@@ -81,14 +86,12 @@ $LicenseGroupMember = Get-MgGroupMember -GroupId $LicenseGroupID -All
 
 for ($i = 0; $i -lt $LicenseGroupMember.length; $i++) {
   $LicenseGroupMember[$i] = Get-MgUser -UserId $LicenseGroupMember[$i].Id -Property Id, DisplayName, UserPrincipalName, AccountEnabled
-  Write-Output "User $i from $($LicenseGroupMember.length) | $($LicenseGroupMember[$i].UserPrincipalName)"
 }
 
 $TelephonyGroupMember = Get-MgGroupMember -GroupId $TelephonyGroupID -All
 
 for ($i = 0; $i -lt $TelephonyGroupMember.length; $i++) {
   $TelephonyGroupMember[$i] = Get-MgUser -UserId $TelephonyGroupMember[$i].Id -Property Id, DisplayName, UserPrincipalName, AccountEnabled
-  Write-Output "User $i from $($TelephonyGroupMember.length) | $($TelephonyGroupMember[$i].UserPrincipalName)"
 }
 
 $EnabledLicenseGroupMember = $LicenseGroupMember | Where-Object { $_.AccountEnabled -eq $true }
@@ -119,15 +122,17 @@ If ( $UsersToEnable ) {
         Set-CsPhoneNumberAssignment -Identity $_.UserPrincipalName -PhoneNumber $LineUri -PhoneNumberType DirectRouting -ErrorAction:Stop
         Grant-CsOnlineVoiceRoutingPolicy -Identity $_.UserPrincipalName -PolicyName "SwisscomET4T"
         New-MgGroupMember -GroupId $TelephonyGroupID -DirectoryObjectId $_.Id
+        Write-Output "Assigned number $LineUri to $($_.UserPrincipalName)"
         (Write-BasicAdaptiveCard $TeamsInfoHook "Assigned number $LineUri to $($_.UserPrincipalName)")
       }
       Else {
+        Write-Warning "The number $LineUri does not match the required format"
         (Write-BasicAdaptiveCard $TeamsWarningHook "The number $LineUri does not match the required format")
       }
     }
     catch {
+      Write-Error "User $($UserToEnable.UserPrincipalName) could not be enabled." $_.exception
       (Write-BasicAdaptiveCard $TeamsErrorHook "User $($UserToEnable.UserPrincipalName) could not be enabled." $_.exception)
-      throw $_.exception
     }
   }
 }
@@ -150,7 +155,7 @@ If ( $UsersToDisable ) {
     }
     catch {
       (Write-BasicAdaptiveCard $TeamsErrorHook "User $($_.UserPrincipalName) could not be disabled." $_.exception)
-      throw $_.exception
+      Write-Error -Message $_.exception
     }
   }
 }
