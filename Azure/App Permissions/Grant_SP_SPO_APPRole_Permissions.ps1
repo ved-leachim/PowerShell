@@ -1,6 +1,5 @@
-
 #------------------------------------------------------------------------------#
-# Filename:    Grant_SP_APPRole_Permissions.ps1
+# Filename:    Grant_SP_SPO_AppRole_Permissions.ps1
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
@@ -8,19 +7,19 @@
 # Date:        04.12.2022
 #
 # Description:
-# Grant a Service Principal AppRole permissions on another Azure AD Application / API (e.g. MS Graph)
+# Grant a Service Principal AppRole permissions on SPO APIs
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
 #
 # References:
-# https://techcommunity.microsoft.com/t5/integrations-on-azure-blog/grant-graph-api-permission-to-managed-identity-object/ba-p/2792127
-# https://practical365.com/managed-identity-powershell/
-# https://msendpointmgr.com/2021/07/02/managed-identities-in-azure-automation-powershell/
+# https://pnp.github.io/powershell/articles/azurefunctions.html
+# https://pnp.github.io/powershell/cmdlets/Add-PnPAzureADServicePrincipalAppRole.html
+# https://www.leonarmston.com/2022/02/use-sites-selected-permission-with-fullcontrol-rather-than-write-or-read/
 #
 # Dependencies:
-# PowerShell Version 5.1 or higher
-# Microsoft Graph PowerShell Module
+# Recommended: PowerShell Version 7.3.0
+# PnP.PowerShell Nightly Build or latest Release
 # 
 #------------------------------------------------------------------------------#
 #--------------------Setup Configuration----------------------#
@@ -32,44 +31,28 @@ $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
-$TenantID = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # Tenant ID of the Azure AD Tenant
-$TargetAppId = "00000003-0000-0000-c000-000000000000" # The AppId which SP needs to get permissions on (e.g. Microsoft Graph)
-$APIPermissions = @("User.Read.All", "Group.Read.All", "GroupMember.Read.All") # The AppRole permissions that shall be granted to SP
-$SPDisplayName = "SP-App-Name" # The Display Name of the Service Principal
+$SiteUrl = "Target Site URL" # Target Site URL
+$AppId = "Application Id of the Registered App" # Can be found in the Azure Portal on Enterprise Applications or Registered Apps
+$ObjectId = "Object Id / Service Principal Id" # Can be found in the Azure Portal on Enterprise Applications
 #-------------------------------------------------------------#
 
-function Grant-MSIAPIPermissions() {
-    Param(
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string]$TenantId,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string]$SPDisplayName,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string]$AppId,
-        [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [array]$APIPermissions
-    )
+Connect-PnPOnline -Url $SiteUrl -Interactive
 
-    Process {
-        Connect-MgGraph -TenantId $TenantId -Scopes "Application.Read.All, AppRoleAssignment.ReadWrite.All"
-
-        # Get Service Principal of Managed System Identity, that needs to be granted permissions
-        $MSI = Get-MgServicePrincipal -Filter "displayName eq '$MSIDisplayName'"
-
-        # Get Service Principal of App, on that the MSI needs to be granted permissions
-        $AppServicePrincipal = Get-MgServicePrincipal -Filter "AppId eq '$AppId'"
-        # Get the AppRoles matching the APIPermissions
-        $AppRoles = @()
-        foreach ($APIPermission in $APIPermissions) {
-            $AppRoles += $AppServicePrincipal.AppRoles | Where-Object { $_.Value -eq $APIPermission }
-        }
-        # Prepare the AppRoleAssignment
-        $params = @{
-            PrincipalId = "$($MSI.Id)";
-            ResourceId  = "$($AppServicePrincipal.Id)";
-        }
-        # You can only assign one AppRole at a time, so we need to loop through the AppRoles
-        $AppRoles | ForEach-Object {
-            $params.AppRoleId = "$($_.Id)"
-            New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $MSI.Id -BodyParameter $params
-        }
-    }
+# Optional: To get an enumeration of Graph or SPO AppRole Permissions
+function GetAllTheAppRoles() {
+    # Only Part of the Nightly Version of PnP.PowerShell
+    Get-PnPAzureADServicePrincipal -BuiltInType MicrosoftGraph | Get-PnPAzureADServicePrincipalAvailableAppRole
+    Get-PnPAzureADServicePrincipal -BuiltInType SharePointOnline | Get-PnPAzureADServicePrincipalAvailableAppRole
 }
 
-Grant-MSIAPIPermissions -TenantId $TenantId -MSIDisplayName $SPDisplayName -AppId $TargetAppId -APIPermissions $APIPermissions
+# First create a Read or Write permission entry for the app to the site. Currently unable to Set as FullControl
+$grant = Grant-PnPAzureADAppSitePermission -Permissions "Write" -Site $SiteUrl -AppId $AppId -DisplayName "SitesResourceSpecific"
+
+# Get the Permission ID for the app using App Id
+$PermissionId = Get-PnPAzureADAppSitePermission -AppIdentity $AppId
+
+# Change the newly created Read/Write app site permission entry to FullControl - For a Specific Site
+Set-PnPAzureADAppSitePermission -Site $Siteurl -PermissionId $(($PermissionId).Id) -Permissions "FullControl"
+
+# --> If the commands above did not solve the permission problem, uncomment the next line - For all the Sites
+# Add-PnPAzureADServicePrincipalAppRole -Principal $ObjectId -AppRole "Sites.FullControl.All" -BuiltInType SharePointOnline
