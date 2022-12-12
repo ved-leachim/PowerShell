@@ -50,7 +50,7 @@ function Grant-MSIAPIPermissions() {
         Connect-MgGraph -TenantId $TenantId -Scopes "Application.Read.All, AppRoleAssignment.ReadWrite.All"
 
         # Get Service Principal of Managed System Identity, that needs to be granted permissions
-        $MSI = Get-MgServicePrincipal -Filter "displayName eq '$MSIDisplayName'"
+        $SP = Get-MgServicePrincipal -Filter "displayName eq '$SpDisplayName'"
 
         # Get Service Principal of App, on that the MSI needs to be granted permissions
         $AppServicePrincipal = Get-MgServicePrincipal -Filter "AppId eq '$AppId'"
@@ -61,15 +61,15 @@ function Grant-MSIAPIPermissions() {
         }
         # Prepare the AppRoleAssignment
         $params = @{
-            PrincipalId = "$($MSI.Id)";
+            PrincipalId = "$($SP.Id)";
             ResourceId  = "$($AppServicePrincipal.Id)";
         }
         # You can only assign one AppRole at a time, so we need to loop through the AppRoles
         $AppRoles | ForEach-Object {
             $params.AppRoleId = "$($_.Id)"
-            New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $MSI.Id -BodyParameter $params
+            New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $SP.Id -BodyParameter $params
         }
     }
 }
 
-Grant-MSIAPIPermissions -TenantId $TenantId -MSIDisplayName $SPDisplayName -AppId $TargetAppId -APIPermissions $APIPermissions
+Grant-MSIAPIPermissions -TenantId $TenantId -SPDisplayName $SPDisplayName -AppId $TargetAppId -APIPermissions $APIPermissions
