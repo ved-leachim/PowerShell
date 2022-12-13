@@ -54,7 +54,7 @@ function Get-UsersWithSpecificLicense {
   Select-MgProfile -Name "beta"
 
   try {
-    Connect-MgGraph -Scopes "User.Read.All"
+    Connect-MgGraph -Scopes "User.Read.All" | Out-Null
     Write-Host "Successfully connected to MS Graph."
   }
   catch {
@@ -87,12 +87,6 @@ function Add-UsersToGroup {
   $i = 0
 
   foreach ($User in $UserList) {
-
-    # This is somehow needed because Graph writes into $UsersList[0] and $UsersList[1]
-    $i++
-    if ($i -le 2) {
-      continue
-    }
 
     $params = @{
       "@odata.id" = "https://graph.microsoft.com/beta/directoryObjects/$($User.Id)"
