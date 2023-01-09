@@ -1,13 +1,13 @@
 #------------------------------------------------------------------------------#
 # Filename:    SPO_Page-Usage-Reports_for_Sites.ps1
 #
-# Author:      Michael Schmitz 
+# Author:      Michael Schmitz
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        16.12.2022
+# Version:     1.1.0
+# Date:        09.01.2022
 #
 # Description:
-# Generates a CSV file with the usage data for all the pages in the provided sites
+# Generates a CSV file with the usage data for all the pages in the provided sites, excluding subsites.
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
@@ -25,9 +25,9 @@
 #
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
-$Sites = @("https://...", "https://...", "https://...")
-$StartTime = "2022-09-15"
-$EndTime = "2022-12-14"
+$Sites = @("https://bernerfachhochschule.sharepoint.com/sites/S/wiki")
+$StartTime = "2022-10-11"
+$EndTime = "2023-01-09"
 #-------------------------------------------------------------#
 #--------------------Setup Configuration----------------------#
 # Set-StrictMode -Version Latest
@@ -52,13 +52,31 @@ Function New-TimedSiteUsageReports {
     Process {
         foreach ($Site in $Sites) {
             Connect-PnPOnline -Url $Site -Interactive
-        
-            $GraphAccessToken = Get-PnPGraphAccessToken
-            $SiteId = (Get-PnPSite -Includes ID).Id
+            
+            # Check if the site is a subsite
+            $IsSubsite = $false
+            $RootSite = Get-PnPSite
+            if ($RootSite.Url -ne $Site) {
+                $IsSubsite = $true
+            }
+
+            $SiteId = (Get-PnPSite -Includes Id).Id
+            if ($IsSubsite) {
+                $SubSiteId = (Get-PnPWeb -Includes Id).Id
+            }
             $ListId = (Get-PnPList -Includes Id -Identity "Site Pages").Id
-        
+
+            $GraphAccessToken = Get-PnPGraphAccessToken
+
             # Get all the pages in the site
-            $Pages = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/lists/$ListId/items/?`$select=webUrl,createdDateTime,sharepointIds"
+            if ($IsSubsite) {
+                Write-Output "The $Site is a subsite. Analytics API is not supported for subsites. Continuing with the next site."
+                continue
+                # $Pages = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/sites/$SubSiteId/lists/$ListId/items/?`$select=webUrl,createdDateTime,sharepointIds"
+            }
+            else {
+                $Pages = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/lists/$ListId/items/?`$select=webUrl,createdDateTime,sharepointIds"
+            }
         
             $ReportItems = @()
             foreach ($Page in $Pages.value) {
@@ -76,10 +94,16 @@ Function New-TimedSiteUsageReports {
                 $TotalViews = 0
                 $TotalUniqueViewers = 0
                 $TotalTimeSpentInSeconds = 0
-        
-                # Get the analytics for the page
-                $AnalyticsData = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/lists/$ListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime',endDateTime='$EndTime',interval='day')"
-        
+
+                if ($IsSubsite) {
+                    # Get the analytics for the page
+                    $AnalyticsData = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/lists/$ListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime',endDateTime='$EndTime',interval='day')"
+                }
+                else {
+                    # Get the analytics for the page
+                    $AnalyticsData = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/sites/$SubSiteId/lists/$ListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime',endDateTime='$EndTime',interval='day')"
+                }
+                
                 # Sum up the analytics for the page
                 foreach ($Analytics in $AnalyticsData.value) {
                     $TotalViews += $Analytics.access.actionCount
