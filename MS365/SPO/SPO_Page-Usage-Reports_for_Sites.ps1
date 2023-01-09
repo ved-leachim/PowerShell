@@ -15,6 +15,7 @@
 # References:
 # https://developer.microsoft.com/en-us/graph/graph-explorer
 # https://techcommunity.microsoft.com/t5/microsoft-sharepoint-blog/how-to-retrieve-analytics-information-for-pages-in-the-quot-site/ba-p/2366457
+# https://github.com/microsoftgraph/microsoft-graph-docs/issues/19812
 #
 # Dependencies:
 # Recommended PS Version: 7.1.3
@@ -25,7 +26,7 @@
 #
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
-$Sites = @("https://bernerfachhochschule.sharepoint.com/sites/S/wiki")
+$Sites = @("https://...")
 $StartTime = "2022-10-11"
 $EndTime = "2023-01-09"
 #-------------------------------------------------------------#
