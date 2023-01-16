@@ -3,14 +3,15 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        13.12.2022
+# Version:     1.0.1
+# Date:        16.01.2023
 #
 # Description:
 # Automatically assigns the Teams AppPermissionPolicy to Group members and log into Teams.
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
+# 1.0.1 - Exclude users without an E3 license from the assignment
 #
 # References:
 # https://doitpsway.com/how-to-use-managed-identity-to-connect-to-azure-exchange-graph-intune-in-azure-automation-runbook
@@ -23,7 +24,7 @@
 # 
 #------------------------------------------------------------------------------#
 #-------------------------Constants---------------------------#
-#
+$SPE_E3 = "05e9a617-0261-4cee-bb44-138d3ef5d965" # Microsoft 365 E3
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
 $AppPermissionPolicyName = "<APP_PERMISSION_POLICY_NAME>" # Name of the AppPermissionPolicy
@@ -105,10 +106,13 @@ try {
     Write-Output "Get User Details..."
     for ($i = 0; $i -lt $StaffGroupMemberToAssign.count; $i++) {
         $StaffGroupMemberToAssign[$i] = Get-MgUser -UserId $StaffGroupMemberToAssign[$i].Id -Property Id, DisplayName, UserPrincipalName, AccountEnabled
+        $HasE3LicenseAssigned = if (Get-MgUserLicenseDetail -UserId $StaffGroupMemberToAssign[$i].Id -All | Where-Object { $_.SkuId -eq $SPE_E3 })
+        { $true } else { $false }
+        $StaffGroupMemberToAssign[$i] | Add-Member -NotePropertyName "HasE3LicenseAssigned" -NotePropertyValue $HasE3LicenseAssigned
     }
 
     # Get the enabled users out of the StaffGroup
-    $EnabledStaffGroupMemberToAssign = $StaffGroupMemberToAssign | Where-Object { $_.AccountEnabled -eq $true }
+    $EnabledStaffGroupMemberToAssign = $StaffGroupMemberToAssign | Where-Object { $_.AccountEnabled -eq $true -and $_.HasE3LicenseAssigned -eq $true }
     Write-Output "Found $($EnabledStaffGroupMemberToAssign.count) enabled Staff Members who definitely need the AppPermissionPolicy and are enabled."
 
     $StaffGroupMemberToAssignArray = @()
