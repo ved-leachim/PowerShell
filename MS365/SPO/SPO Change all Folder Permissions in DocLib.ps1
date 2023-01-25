@@ -25,10 +25,10 @@ $ErrorActionPreference = 'Continue' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
 #-------------------------Constants---------------------------#
-[string]$Site = "https://geoipacloud.sharepoint.com/sites/qv"
-[string]$DocumentLibrary = "QV IPA Ablagen"
-[array]$SPOGroupName = @("SP QV Rolle Administration")
-[array]$SPOUserName = @()
+[string]$Site = "<https://...>"
+[string]$DocumentLibrary = "<DocLib Name>"
+[array]$SPOGroupName = @("<Group Name>")
+[array]$SPOUserName = @("<User Name>")
 [string]$Permission = 'Mitwirken'
 [string]$SearchPattern = "Kandidat*"
 #-------------------------------------------------------------#
