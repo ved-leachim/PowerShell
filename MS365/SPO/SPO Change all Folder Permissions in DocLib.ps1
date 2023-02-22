@@ -3,8 +3,8 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        25.01.2023
+# Version:     1.0.1
+# Date:        22.02.2023
 #
 # Description:
 # Changes all the Folder Permissions in a Document Library (recursively or not)
@@ -12,6 +12,7 @@
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
+# 1.0.1 - Added the possibility to remove permissions
 #
 # References:
 #
@@ -29,7 +30,8 @@ $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 [string]$DocumentLibrary = "<DocLib Name>"
 [array]$SPOGroupName = @("<Group Name>")
 [array]$SPOUserName = @("<User Name>")
-[string]$Permission = 'Mitwirken'
+[string]$AddPermission = "Vollzugriff"
+[string]$RemovePermission = "Mitwirken"
 [string]$SearchPattern = "Kandidat*"
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
@@ -56,19 +58,28 @@ Function Update-FolderPermissions {
     $i = 1;
     Foreach ($Folder in $Folders) {
         Write-Output "Processing Folder $i of $($Folders.Count)"
-        Write-Output "Updating Folder $($Folder.Name)..."
+        Write-Output "Updating Folder $($Folder.ServerRelativeUrl)..."
         Write-Output "There are $($SPOGroupName.Count) Groups permissions to be set"
         Foreach ($SPOGroup in $SPOGroupName) {
-            Write-Output "Setting Group Permission for $SPOGroup"
-            Set-PnPFolderPermission -List $DocumentLibrary -Identity $Folder.UniqueId -Group $SPOGroup -AddRole $Permission
+            Write-Output "Setting Role $AddPermission for $SPOGroup on Folder $($Folder.ServerRelativeUrl)"
+            Set-PnPFolderPermission -List $DocumentLibrary -Identity $Folder.UniqueId -Group $SPOGroup -AddRole $AddPermission
+            if ($RemovePermission) {
+                Write-Output "Removing Role $RemovePermission for $SPOGroup on Folder $($Folder.ServerRelativeUrl)"
+                Set-PnPFolderPermission -List $DocumentLibrary -Identity $Folder.UniqueId -Group $SPOGroup -RemoveRole $RemovePermission
+            }
         }
         Write-Output "There are $($SPOUserName.Count) User permissions to be set"
         Foreach ($SPOUser in $SPOUserName) {
             Write-Output "Setting User Permission for $SPOUser"
+            Write-Output "Setting Role $AddPermission for $SPOUser on Folder $($Folder.ServerRelativeUrl)"
             Set-PnPFolderPermission -List $DocumentLibrary -User $SPOUser -AddRole $Permission
+            if ($RemovePermission) {
+                Write-Output "Removing Role $RemovePermission for $SPOUser on Folder $($Folder.ServerRelativeUrl)"
+                Set-PnPFolderPermission -List $DocumentLibrary -User $SPOUser -RemoveRole $RemovePermission
+            }
         }
         $i++
-        Write-Output "Done"
+        Write-Output "$($Folder.ServerRelativeUrl) is Done"
     }
     Disconnect-PnPOnline
 }
