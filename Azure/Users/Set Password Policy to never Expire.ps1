@@ -30,9 +30,9 @@ Select-MgProfile -Name "beta"
 # New-Variable -Name myConst -Value "This CANNOT be changed" -Option Constant $myConst
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
-$TenantId = "d6a1cf8c-768e-4187-a738-b6e50c4deb4a"
+$TenantId = "<TENANTID>"
 $Users = @(
-    "srvc_kammermusik_flow@bernerfachhochschule.onmicrosoft.com"
+    "EMAIL OF USERS"
 )
 #-------------------------------------------------------------#
 
