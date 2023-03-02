@@ -4,7 +4,7 @@
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
 # Version:     2.1.1
-# Date:        19.12.2022
+# Date:        02.03.2023
 #
 # Description:
 # Set Phone Nr. and VoiceRoutingPolicy in Teams for all voice enabled users
