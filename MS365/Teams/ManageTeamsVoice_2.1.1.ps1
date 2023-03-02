@@ -1,9 +1,9 @@
 #------------------------------------------------------------------------------#
-# Filename:    ManageTeamsVoice_2.1.0.ps1
+# Filename:    ManageTeamsVoice_2.1.1.ps1
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     2.1.0
+# Version:     2.1.1
 # Date:        19.12.2022
 #
 # Description:
@@ -14,6 +14,7 @@
 # 2.0.0 - Using Managed Identies for AUTHN and Graph PowerShell SDK
 # 2.0.1 - Improve Logging & Fix that Script will not stop if one phone nr. assignment fails
 # 2.1.0 - Improve Performance of the Script, by comparing Ids instead of User-Objects / Smaller changes to improve logging
+# 2.1.1 - Improve logging - Add exception object to Write-Error
 #
 # Dependencies:
 # Microsoft PowerShell Graph SDK
@@ -148,7 +149,7 @@ Function Set-PhoneNumberAndVoiceRoutingPolicy {
       }
     }
     catch {
-      Write-Error "Could not assign number to $($User.UserPrincipalName)"
+      Write-Error "Could not assign number to $($User.UserPrincipalName) | Error: $_.exception"
       $ListOfFailedAddedNumbers += $User
       Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Failed Phone Nr. assignment" -OptionalMessage "Could not assign number to $($User.UserPrincipalName)" -ErrorMessage $_.exception
     }
@@ -204,7 +205,7 @@ Function Remove-PhoneNumberAndVoiceRoutingPolicy {
       # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Successful Phone Nr. removal" -OptionalMessage "Removed number $($User.TelephoneNumber) from $($User.UserPrincipalName)"
     }
     catch {
-      Write-Error "Could not remove number from $($User.UserPrincipalName)"
+      Write-Error "Could not remove number from $($User.UserPrincipalName) | Error: $_.exception"
       $ListOfFailedRemovedNumbers += $User
       Write-BasicAdaptiveCard -ChannelHookURI $TeamsErrorHook -Message "Failed Phone Nr. removal" -OptionalMessage "Could not remove number from $($User.UserPrincipalName)" -ErrorMessage $_.exception
     }
@@ -269,7 +270,7 @@ Function Check-TeamsUserPhoneNumbers {
           # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Successful Phone Nr. update" -OptionalMessage "Updated number from $($User.OnPremLineUri) to $LineUri for $($User.UserPrincipalName)"
         }
         catch {
-          Write-Error "Could not update number for $($User.UserPrincipalName)"
+          Write-Error "Could not update number for $($User.UserPrincipalName) | Error: $_.exception"
           $ListOfFailedChangedNumbers += $User
           Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Failed Phone Nr. update" -OptionalMessage "Could not update number from $($User.OnPremLineUri) to $LineUri for $($User.UserPrincipalName)" -ErrorMessage $_.exception
         }
@@ -280,7 +281,7 @@ Function Check-TeamsUserPhoneNumbers {
       }
     }
     catch {
-      Write-Error "Could not check number for $($User.UserPrincipalName)"
+      Write-Error "Could not check number for $($User.UserPrincipalName) | Error: $_.exception"
       $ListOfFailedChangedNumbers += $User
       Write-BasicAdaptiveCard -ChannelHookURI $TeamsErrorHookHook -Message "Failed Phone Nr. check" -OptionalMessage "Could not check number for $($User.UserPrincipalName)" -ErrorMessage $_.exception
     }
