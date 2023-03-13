@@ -35,7 +35,7 @@ $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #---------------------Variables to Change---------------------#
 $SiteUrl = "Target Site URL" # Target Site URL
 $AppId = "Application Id of the Registered App" # Can be found in the Azure Portal on Enterprise Applications or Registered Apps
-$AppDisplayName = "Object Id / Service Principal Id" # Can be found in the Azure Portal on Enterprise Applications
+$AppDisplayName = "App Display Name" # Can be found in the Azure Portal on Enterprise Applications or App Registrations
 $Permissions = "Permission to grant" # Read, Write, FullControl (FullControl is not available as an initial permission for the App - can be updated later)
 #-------------------------------------------------------------#
 
