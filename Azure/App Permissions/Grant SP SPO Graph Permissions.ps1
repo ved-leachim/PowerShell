@@ -69,14 +69,14 @@ function Set-AppPermissions() {
         Write-Host "Changing Write Permission to FullControl..."
         Set-PnPAzureADAppSitePermission -Site $SiteUrl -PermissionId $($AppSitePermission.Id) -Permissions "FullControl"
         Get-PnPAzureADAppSitePermission
-        Write-Host "Successfully granted FullControl Permission!"
+        Write-Host "Successfully granted FullControl Permission on $SiteUrl!"
     }
     else {
         # Grant the App the Read or Write Permission
         Write-Host "Granting $Permissions Permission..."
         Grant-PnPAzureADAppSitePermission -Permissions $Permissions -Site $SiteUrl -AppId $AppId -DisplayName $AppDisplayName
         Get-PnPAzureADAppSitePermission
-        Write-Host "Successfully granted $Permissions Permission!"
+        Write-Host "Successfully granted $Permissions Permission on $SiteUrl!"
     }
 }
 
