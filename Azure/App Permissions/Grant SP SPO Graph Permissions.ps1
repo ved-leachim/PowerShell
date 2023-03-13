@@ -79,3 +79,5 @@ function Set-AppPermissions() {
         Write-Host "Successfully granted $Permissions Permission!"
     }
 }
+
+Set-AppPermissions -SiteUrl $SiteUrl -AppId $AppId -AppDisplayName $AppDisplayName -Permissions $Permissions
