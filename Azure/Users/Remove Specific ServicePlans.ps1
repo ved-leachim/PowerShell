@@ -3,8 +3,8 @@
 #
 # Author:      Michael Schmitz
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        06.04.2023
+# Version:     1.0.1
+# Date:        17.04.2023
 #
 # Description:
 # Removes a specific ServicePlan from an assigned LicensePlan
@@ -12,6 +12,7 @@
 #
 # Verions:
 # 1.0.0 - Initial creation of the script
+# 1.0.1 - Fixing some variable names & improved logging (show progress)
 #
 # References:
 # https://learn.microsoft.com/en-us/microsoft-365/enterprise/assign-licenses-to-user-accounts-with-microsoft-365-powershell?view=o365-worldwide
@@ -163,8 +164,10 @@ Function Remove-ServicePlansFromAllUsers {
     # Identify Users with targeted LicensePlan
     $UserWithSpecifiedLicense = @()
 
-    Write-Host "Check if the Users in the selected UserAudience do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
+    $i = 1
+    Write-Host "Check if 'AllUsers' do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
     Foreach ($User in $AllEstablishedUsers) {
+        Write-Host "Checking License assignment on User $i of $($AllEstablishedStudents.count)"
         $UserLicense = Get-MgUserLicenseDetail -UserId $User.UserPrincipalName | Where-Object SkuPartNumber -eq $LicensePlanSkuPartNumber
 
         # If the user has the specified license, then assign him/her to the UserWithSpecifiedLicense Array
@@ -172,13 +175,19 @@ Function Remove-ServicePlansFromAllUsers {
             $User | Add-Member -NotePropertyName UserLicense -NotePropertyValue $UserLicense
             $UserWithSpecifiedLicense += $User
         }
+        else {
+            Write-Host "The User '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned." -ForegroundColor Yellow
+            Write-Log -level Warn -message "The User '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned."
+        }
+        $i++
     }
 
     Write-Host "There are $($UserWithSpecifiedLicense.count) Users with the specified LicensePlanSkuPartNumber." -ForegroundColor Cyan
 
     # Lacing new LicensePackage for each user
+    $i = 1
     Foreach ($User in $UserWithSpecifiedLicense) {
-        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)'..." -ForegroundColor Cyan
+        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)' [$i/$($UserWithSpecifiedLicense.count)]..." -ForegroundColor Cyan
 
         $UserCurrentDisabledServicePlans = $User.UserLicense.ServicePlans | Where-Object ProvisioningStatus -eq "Disabled" | Select-Object -ExpandProperty ServicePlanId
 
@@ -196,6 +205,7 @@ Function Remove-ServicePlansFromAllUsers {
         if ($Difference -eq 0) {
             Write-Host "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled. SKIPPING USER" -ForegroundColor Yellow
             Write-Log -level Info -message "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled."
+            $i++
             Continue
         }
 
@@ -210,6 +220,7 @@ Function Remove-ServicePlansFromAllUsers {
         Write-Log -level Info -message "Disabling additoinal $Difference Service Plans for '$($User.DisplayName) | $($User.UserPrincipalName)'"
         
         Set-MgUserLicense -UserId $User.UserPrincipalName -AddLicenses $NewLicensePlanPackage -RemoveLicenses @()
+        $i++
     }
 }
 
@@ -233,8 +244,10 @@ Function Remove-ServicePlansFromAllStaff {
     # Identify Users with targeted LicensePlan
     $UserWithSpecifiedLicense = @()
 
-    Write-Host "Check if the Users in the selected UserAudience do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
+    $i = 1
+    Write-Host "Check if the Staff and Profs do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
     Foreach ($User in $AllEstablishedStaff) {
+        Write-Host "Checking License assignment on Staff/Prof $i of $($AllEstablishedStaff.count)"
         $UserLicense = Get-MgUserLicenseDetail -UserId $User.UserPrincipalName | Where-Object SkuPartNumber -eq $LicensePlanSkuPartNumber
 
         # If the user has the specified license, then assign him/her to the UserWithSpecifiedLicense Array
@@ -242,13 +255,19 @@ Function Remove-ServicePlansFromAllStaff {
             $User | Add-Member -NotePropertyName UserLicense -NotePropertyValue $UserLicense
             $UserWithSpecifiedLicense += $User
         }
+        else {
+            Write-Host "The Staff/Prof User '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned." -ForegroundColor Yellow
+            Write-Log -level Warn -message "The Staff/Prof User '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned."
+        }
+        $i++
     }
 
     Write-Host "There are $($UserWithSpecifiedLicense.count) Staff/Profs with the specified LicensePlanSkuPartNumber." -ForegroundColor Cyan
 
     # Lacing new LicensePackage for each user
+    $i = 1
     Foreach ($User in $UserWithSpecifiedLicense) {
-        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)'..." -ForegroundColor Cyan
+        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)' [$i/$($UserWithSpecifiedLicense.count)]..." -ForegroundColor Cyan
 
         $UserCurrentDisabledServicePlans = $User.UserLicense.ServicePlans | Where-Object ProvisioningStatus -eq "Disabled" | Select-Object -ExpandProperty ServicePlanId
 
@@ -266,6 +285,7 @@ Function Remove-ServicePlansFromAllStaff {
         if ($Difference -eq 0) {
             Write-Host "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled. SKIPPING USER" -ForegroundColor Yellow
             Write-Log -level Info -message "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled."
+            $i++
             Continue
         }
 
@@ -280,6 +300,7 @@ Function Remove-ServicePlansFromAllStaff {
         Write-Log -level Info -message "Disabling additional $Difference Service Plans for '$($User.DisplayName) | $($User.UserPrincipalName)'"
         
         Set-MgUserLicense -UserId $User.UserPrincipalName -AddLicenses $NewLicensePlanPackage -RemoveLicenses @()
+        $i++
     }
 }
 
@@ -303,8 +324,10 @@ Function Remove-ServicePlansFromAllStudents {
     # Identify Users with targeted LicensePlan
     $UserWithSpecifiedLicense = @()
 
-    Write-Host "Check if the Users in the selected UserAudience do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
-    Foreach ($User in $AllEstablishedStaff) {
+    $i = 1
+    Write-Host "Check if the Students do have the specified LicensePlan: '$($LicensePlanSkuPartNumber)' assigned... (This can take some time, grab a coffee)" -ForegroundColor Cyan
+    Foreach ($User in $AllEstablishedStudents) {
+        Write-Host "Checking License assignment on Student $i of $($AllEstablishedStudents.count)"
         $UserLicense = Get-MgUserLicenseDetail -UserId $User.UserPrincipalName | Where-Object SkuPartNumber -eq $LicensePlanSkuPartNumber
 
         # If the user has the specified license, then assign him/her to the UserWithSpecifiedLicense Array
@@ -312,13 +335,19 @@ Function Remove-ServicePlansFromAllStudents {
             $User | Add-Member -NotePropertyName UserLicense -NotePropertyValue $UserLicense
             $UserWithSpecifiedLicense += $User
         }
+        else {
+            Write-Host "The Student '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned." -ForegroundColor Yellow
+            Write-Log -level Warn -message "The Student '$($User.DisplayName) | $($User.UserPrincipalName)' does not have a '$LicensePlanSkuPartNumber' assigned."
+        }
+        $i++
     }
 
     Write-Host "There are $($UserWithSpecifiedLicense.count) Students with the specified LicensePlanSkuPartNumber." -ForegroundColor Cyan
 
     # Lacing new LicensePackage for each user
+    $i = 1
     Foreach ($User in $UserWithSpecifiedLicense) {
-        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)'..." -ForegroundColor Cyan
+        Write-Host "Processing '$($User.DisplayName) | $($User.UserPrincipalName)' [$i/$($UserWithSpecifiedLicense.count)]..." -ForegroundColor Cyan
 
         $UserCurrentDisabledServicePlans = $User.UserLicense.ServicePlans | Where-Object ProvisioningStatus -eq "Disabled" | Select-Object -ExpandProperty ServicePlanId
 
@@ -336,6 +365,7 @@ Function Remove-ServicePlansFromAllStudents {
         if ($Difference -eq 0) {
             Write-Host "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled. SKIPPING USER" -ForegroundColor Yellow
             Write-Log -level Info -message "'$($User.DisplayName) | $($User.UserPrincipalName)' has specified ServicePlans already disabled."
+            $i++
             Continue
         }
 
@@ -350,6 +380,7 @@ Function Remove-ServicePlansFromAllStudents {
         Write-Log -level Info -message "Disabling additoinal $Difference Service Plans for '$($User.DisplayName) | $($User.UserPrincipalName)'"
         
         Set-MgUserLicense -UserId $User.UserPrincipalName -AddLicenses $NewLicensePlanPackage -RemoveLicenses @()
+        $i++
     }
 }
 
