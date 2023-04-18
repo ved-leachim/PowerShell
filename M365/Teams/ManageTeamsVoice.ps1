@@ -3,7 +3,7 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     2.1.1
+# Version:     2.2.0
 # Date:        02.03.2023
 #
 # Description:
@@ -15,6 +15,7 @@
 # 2.0.1 - Improve Logging & Fix that Script will not stop if one phone nr. assignment fails
 # 2.1.0 - Improve Performance of the Script, by comparing Ids instead of User-Objects / Smaller changes to improve logging
 # 2.1.1 - Improve logging - Add exception object to Write-Error
+# 2.2.0 - Fix bug with varialbes and scopes | Add protection for accidental PhoneNr. removement
 #
 # Dependencies:
 # Microsoft PowerShell Graph SDK
@@ -27,8 +28,6 @@
 #----------------------Global Variables-----------------------#
 $LicenseGroupID = "GROUPID" # This is the group with users who are voice enabled and need a phone number and a voiceRoutingPolicy assignment
 $TelephonyGroupID = "GROUPID" # This is the group with users who have a phone number and a voiceRoutingPolicy assigned
-$LicenseGroupMember = @()
-$TelephonyGroupMember = @()
 $UserTypes = @( "TYPE1", "TYPE2") # This is the list of user types that are allowed to have a phone number and a voiceRoutingPolicy assigned
 
 # Teams Hooks
@@ -96,7 +95,7 @@ Function Set-PhoneNumberAndVoiceRoutingPolicy {
     # Get all users who are voice enabled
     $LicenseGroupMember = Get-MgGroupMember -GroupId $LicenseGroupID -All
     # Get all users who have a phone number and a voiceRoutingPolicy assigned
-    $TelephonyGroupMember = Get-MgGroupMember -GroupId $TelephonyGroupID -All
+    $TelephonyGroupMember = Get-MgGroupMember -GroupId $TelephonyGroupID -All 
   
     [array]$LicenseGroupMemberToAssign = $LicenseGroupMember | Where-Object { $_.Id -notin $TelephonyGroupMember.Id }
     Write-Output "Found $($LicenseGroupMemberToAssign.Count) users to potentially assign a phone number."
@@ -135,30 +134,29 @@ Function Set-PhoneNumberAndVoiceRoutingPolicy {
     try {
       $LineUri = $User.TelephoneNumber.Replace(" ", "")
       If ( $LineUri -match "^[+]\d{11}$" ) {
-        Set-CsPhoneNumberAssignment -Identity $User.UserPrincipalName -PhoneNumber $LineUri -PhoneNumberType DirectRouting -ErrorAction:Stop
-        Grant-CsOnlineVoiceRoutingPolicy -Identity $User.UserPrincipalName -PolicyName "SwisscomET4T"
+        Set-CsPhoneNumberAssignment -Identity $User.UserPrincipalName -PhoneNumber $LineUri -PhoneNumberType DirectRouting
+        Grant-CsOnlineVoiceRoutingPolicy -Identity $User.UserPrincipalName -PolicyName "SwisscomESIP"
         New-MgGroupMember -GroupId $TelephonyGroupID -DirectoryObjectId $User.Id
         Write-Output "Assigned number $LineUri to $($User.UserPrincipalName)"
         $ListOfSuccessfullyAddedNumbers += $User
-        # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Successful Phone Nr. assignment" -OptionalMessage "Assigned number $LineUri to $($User.UserPrincipalName)"
       }
       else {
         Write-Output "The number $LineUri does not match the required format."
         $ListOfFailedAddedNumbers += $User
-        # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Warning wrong phone Nr. format." -OptionalMessage "The number $LineUri does not match the required format"
       }
     }
     catch {
       Write-Error "Could not assign number to $($User.UserPrincipalName) | Error: $_.exception"
       $ListOfFailedAddedNumbers += $User
-      Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Failed Phone Nr. assignment" -OptionalMessage "Could not assign number to $($User.UserPrincipalName)" -ErrorMessage $_.exception
     }
   }
+
   Write-ListCard -ChannelHookURI $TeamsInfoHook -ListTitle "Successfully assigned phone numbers" -List {
     Foreach ($User in $ListOfSuccessfullyAddedNumbers) {
       New-CardListItem -Title $User.UserPrincipalName -SubTitle $User.TelephoneNumber -Type "resultItem" -Icon "https://img.icons8.com/cotton/64/null/name--v2.png"
     }
   }
+
   if ($ListOfFailedAddedNumbers.Count -gt 0) {
     Write-ListCard -ChannelHookURI $TeamsErrorHook -ListTitle "Failed to assign phone numbers" -List {
       Foreach ($User in $ListOfFailedAddedNumbers) {
@@ -167,55 +165,73 @@ Function Set-PhoneNumberAndVoiceRoutingPolicy {
     }
   }
 }
-Function Remove-PhoneNumberAndVoiceRoutingPolicy { 
+Function Remove-PhoneNumberAndVoiceRoutingPolicy {
 
-  $EnabledTeamsUser = Get-CsOnlineUser -Filter { EnterpriseVoiceEnabled -eq $true } | Where-Object {
+  # Get all users who are voice enabled
+  $LicenseGroupMember = Get-MgGroupMember -GroupId $LicenseGroupID -All
+
+  $UserTypes = @( "DirSyncEnabledOnlineTeamsOnlyUser", "DirSyncEnabledOnlineActiveDirectoryDisabledUser")
+
+  $TeamsUser = Get-CsOnlineUser -Filter { EnterpriseVoiceEnabled -eq $true } | Where-Object {
     $_.InterpretedUserType -in $UserTypes
   }
 
-  $EnabledLicenseGroupMember = @()
-  $LicenseGroupMember | ForEach-Object -Process { $EnabledLicenseGroupMember += (Get-MgUser -UserId $_.Id -Property Id, DisplayName, UserPrincipalName) | Where-Object { $_.AccountEnabled -eq $true } }
-
-  [array]$UsersToDisable = $EnabledTeamsUser | Where-Object { $_.UserPrincipalName -notin $EnabledLicenseGroupMember.UserPrincipalName }
-
-  # Check if there are any disabled users with a phone number
-  if ($UsersToDisable.Count -eq 0) {
-    Write-Output "No users to remove a phone number and voice routing policy from."
-    Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "No users to remove a phone number and voice routing policy from."
-    return
+  Foreach ($User in $TeamsUser) {
+    $TempUser = Get-MgUser -UserId $User.UserPrincipalName -Property Id, UserPrincipalName, Mail, DisplayName
+    $User | Add-Member -NotePropertyName Id -NotePropertyValue $TempUser.Id
   }
 
-  Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Users to remove a phone number" -OptionalMessage "There are $($UsersToDisable.Count) users to remove a phone number."
+  Write-Output "There are a total of $($TeamsUser.count) Teams Users to check for PhoneNr. removal."
+
+  # Get the enabled users of the LicenseGroupMembers
+  $EnabledLicenseGroupMember = @()
+
+  Foreach ($User in $LicenseGroupMember) {
+    $EnabledLicenseGroupMember += Get-MgUser -UserId $User.Id -Property Id, UserPrincipalName, Mail, DisplayName, AccountEnabled | Where-Object { $_.AccountEnabled -eq $true }
+  }
+
+  Write-Output "There are a total of $($EnabledLicenseGroupMember.count) voice enabled users."
+  Write-Output "Therfore a total of $($TeamsUser.Count - $EnabledLicenseGroupMember.Count) PhoneNr. should get removed."
+
+  $UsersToDisable = $TeamsUser | Where-Object { $_.UserPrincipalName -notin $EnabledLicenseGroupMember.UserPrincipalName }
+
+  Write-Output "The Script detected a total of $($UsersToDisable.Count) Users to remove the PhoneNr. from."
+
+  if ($UsersToDisable.count -ge 100) {
+    Write-Warning "The script registered 100 or more users whose phone number should be removed. EXITING FUNCTION"
+    Write-BasicAdaptiveCard -Title "Warning: Check the Script" -Text "The script registered 100 or more users whose phone number should be removed." -Color Red
+    return
+  }
 
   # Lists for reporting
   $ListOfSuccessfullyRemovedNumbers = @()
   $ListOfFailedRemovedNumbers = @()
 
   Foreach ($User in $UsersToDisable) {
-    Write-Output "Removing phone number from $($User.UserPrincipalName)..."
-    $UserTelephoneNumber = Get-MgUserProfilePhone -UserId $User.Id -Property Number, Type | Where-Object { $_.Type -eq "business" }
-    $User | Add-Member -NotePropertyName TelephoneNumber -NotePropertyValue $UserTelephoneNumber.Number
+
+    Write-Output "Removing phone number from '$($User.UserPrincipalName) | $($User.DisplayName)'..."
 
     try {
-      Remove-CsPhoneNumberAssignment -Identity $User.UserPrincipalName -PhoneNumber $User.TelephoneNumber -PhoneNumberType DirectRouting -EnterpriseVoiceEnabled $false
+      Remove-CsPhoneNumberAssignment -Identity $User.UserPrincipalName -RemoveAll
       Grant-CsOnlineVoiceRoutingPolicy -Identity $User.UserPrincipalName -PolicyName $null
-      Remove-MgGroupMemberByRef -ObjectId $TelephonyGroupID -DirectoryObjectId $User.Id
-      Write-Output "Removed number $($User.TelephoneNumber) from $($User.UserPrincipalName)"
+      Remove-MgGroupMemberByRef -GroupId $TelephonyGroupID -DirectoryObjectId $User.Id
+
+      Write-Output "Removed User $($User.UserPrincipalName)"
       $ListOfSuccessfullyRemovedNumbers += $User
-      # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Successful Phone Nr. removal" -OptionalMessage "Removed number $($User.TelephoneNumber) from $($User.UserPrincipalName)"
     }
     catch {
       Write-Error "Could not remove number from $($User.UserPrincipalName) | Error: $_.exception"
       $ListOfFailedRemovedNumbers += $User
-      Write-BasicAdaptiveCard -ChannelHookURI $TeamsErrorHook -Message "Failed Phone Nr. removal" -OptionalMessage "Could not remove number from $($User.UserPrincipalName)" -ErrorMessage $_.exception
     }
   }
+
   Write-ListCard -ChannelHookURI $TeamsInfoHook -ListTitle "Successfully removed phone numbers" -List {
     Foreach ($User in $ListOfSuccessfullyRemovedNumbers) {
       New-CardListItem -Title $User.UserPrincipalName -SubTitle $User.TelephoneNumber -Type "resultItem" -Icon "https://img.icons8.com/cotton/64/null/name--v2.png"
     }
   }
-  if ($ListOfFailedRemovedNumbers.Count -gt 0) {
+
+  if ($ListOfFailedRemovedNumbers) {
     Write-ListCard -ChannelHookURI $TeamsErrorHook -ListTitle "Failed to remove phone numbers" -List {
       Foreach ($User in $ListOfFailedRemovedNumbers) {
         New-CardListItem -Title $User.UserPrincipalName -SubTitle $User.TelephoneNumber -Type "resultItem" -Icon "https://img.icons8.com/cotton/64/null/name--v2.png"
@@ -224,73 +240,59 @@ Function Remove-PhoneNumberAndVoiceRoutingPolicy {
   }
 }
 
-Function Check-TeamsUserPhoneNumbers {
+Function Update-TeamsUserPhoneNumbers {
 
-  # Get all enabled Teams users
-  [array]$EnabledTeamsUser = Get-CsOnlineUser -Filter { EnterpriseVoiceEnabled -eq $true } | Where-Object { $_.InterpretedUserType -in $UserTypes }
-  Write-Output "Found $($EnabledTeamsUser.Count) enabled Teams users."
+  $UserTypes = @( "DirSyncEnabledOnlineTeamsOnlyUser", "DirSyncEnabledOnlineActiveDirectoryDisabledUser")
 
-  # Check if there are any enabled Teams users
-  if ($EnabledTeamsUser.Count -eq 0) {
-    Write-Output "No enabled Teams users to check phone numbers."
-    Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "No enabled Teams users to check phone numbers."
-    return
-  }
-
-  Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Users to check phone numbers" -OptionalMessage "There are $($EnabledTeamsUser.Count) users to check phone numbers."
+  $EnabledTeamsUserCheckup = Get-CsOnlineUser -Filter { EnterpriseVoiceEnabled -eq $true } | Where-Object { $_.InterpretedUserType -in $UserTypes }
 
   # Lists for reporting
   $ListOfSuccessfullyChangedNumbers = @()
   $ListOfFailedChangedNumbers = @()
 
-  Foreach ($User in $EnabledTeamsUser) {
-    Write-Output "Checking phone number for $($User.UserPrincipalName)..."
-
+  Foreach ($User in $EnabledTeamsUserCheckup) {
     try {
-      $LineUri = "tel:" + $User.Phone.Replace(" ", "")
-      # Check if the number is valid and if it is different from the current number 
-      If ( $User.OnpremLineUri -ne $LineUri -and $LineUri -match "^(tel:)[+]\d{11}$" ) {
-        try {
-
-          # Bugfix for User Number Change
-
-          # Extend the validation for Change the Tel.Number when Number exist on another User
-          $ObjFilter = 'OnPremLineURI -eq "{0}"' -f $LineUri
-          $ObjExistNumber = Get-CsOnlineUser -Filter $ObjFilter
-
-          if ($ObjExistNumber.OnPremLineUri.count -eq 1) {
-            Set-CsUser -Identity $ObjExistNumber.UserPrincipalName -OnPremLineUri ""
-            sleep 10
-
-          }
-
-          Set-CsOnlineUser -Identity $User.UserPrincipalName -OnPremLineUri $LineUri
-          Write-Output "Updated number $LineUri for $($User.UserPrincipalName)"
-          $ListOfSuccessfullyChangedNumbers += $User
-          # Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Successful Phone Nr. update" -OptionalMessage "Updated number from $($User.OnPremLineUri) to $LineUri for $($User.UserPrincipalName)"
-        }
-        catch {
-          Write-Error "Could not update number for $($User.UserPrincipalName) | Error: $_.exception"
-          $ListOfFailedChangedNumbers += $User
-          Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Failed Phone Nr. update" -OptionalMessage "Could not update number from $($User.OnPremLineUri) to $LineUri for $($User.UserPrincipalName)" -ErrorMessage $_.exception
-        }
-      }
-      else {
-        Write-Output "The number $LineUri does not match the required format."
-        Write-BasicAdaptiveCard -ChannelHookURI $TeamsInfoHook -Message "Warning wrong phone Nr. format." -OptionalMessage "The number $LineUri does not match the required format."
-      }
+      $AADUserPhone = Get-MgUserProfilePhone -UserId $User.UserPrincipalName -Property Number, Type | Where-Object { $_.Type -eq "business" }
+      $AADUserPhoneNumber = $AADUserPhone.Number.Replace(" ", "")
+      # Remove tel: from .LineUri
+      $UserLineUriE164Format = $User.LineUri.Replace("tel:", "")
     }
     catch {
-      Write-Error "Could not check number for $($User.UserPrincipalName) | Error: $_.exception"
-      $ListOfFailedChangedNumbers += $User
-      Write-BasicAdaptiveCard -ChannelHookURI $TeamsErrorHookHook -Message "Failed Phone Nr. check" -OptionalMessage "Could not check number for $($User.UserPrincipalName)" -ErrorMessage $_.exception
+      Write-Error "Could not get Phone Number for '$($User.UserPrincipalName) | $($User.DisplayName)'!"
+      # Write-BasicAdaptiveCard -Title "Error" -Text "Could not get Phone Number for '$($User.UserPrincipalName) | $($User.DisplayName)'!" -Color Red
+      continue
+    }
+
+    if ($UserLineUriE164Format -ne $AADUserPhoneNumber -and $AADUserPhoneNumber -match "^[+]\d{11}$") {
+      Write-Output "Switching Number for '$($User.UserPrincipalName) | $($User.DisplayName)'..."
+      $OriginalLineUri = $User.LineUri
+      try {
+        # Check if the new Number exists on another Account
+        $Filter = 'LineUri -eq "{0}"' -f $AADUserPhoneNumber
+        $NumberAlreadyTaken = Get-CsOnlineUser -Filter $Filter
+
+        if ($NumberAlreadyTaken) {
+          Remove-CsPhoneNumberAssignment -Identity $NumberAlreadyTaken.UserPrincipalName -RemoveAll
+          Start-Sleep -Seconds 10
+        }
+
+        Set-CsPhoneNumberAssignment -Identity $User.UserPrincipalName -PhoneNumber $AADUserPhoneNumber -PhoneNumberType DirectRouting
+        Write-Output "Successfully switched phone Number of '$($User.UserPrincipalName) | $($User.DisplayName)' from '$($OriginalLineUri)' to '$($AADUserPhoneNumber)'"
+        $ListOfSuccessfullyChangedNumbers += $User
+      }
+      catch {
+        Write-Error "Could not change number for '$($User.UserPrincipalName) | $($User.DisplayName)'!"
+        $ListOfFailedChangedNumbers += $User
+      }
     }
   }
+
   Write-ListCard -ChannelHookURI $TeamsInfoHook -ListTitle "Successfully updated phone numbers" -List {
     Foreach ($User in $ListOfSuccessfullyChangedNumbers) {
       New-CardListItem -Title $User.UserPrincipalName -SubTitle $User.OnPremLineUri -Type "resultItem" -Icon "https://img.icons8.com/cotton/64/null/name--v2.png"
     }
   }
+
   Write-ListCard -ChannelHookURI $TeamsErrorHookHook -ListTitle "Failed to update phone numbers" -List {
     Foreach ($User in $ListOfFailedChangedNumbers) {
       New-CardListItem -Title $User.UserPrincipalName -SubTitle $User.OnPremLineUri -Type "resultItem" -Icon "https://img.icons8.com/cotton/64/null/name--v2.png"
@@ -302,5 +304,5 @@ Function Check-TeamsUserPhoneNumbers {
 Connect-Environments
 Set-PhoneNumberAndVoiceRoutingPolicy
 Remove-PhoneNumberAndVoiceRoutingPolicy
-Check-TeamsUserPhoneNumbers
+Update-TeamsUserPhoneNumbers
 # End the script
