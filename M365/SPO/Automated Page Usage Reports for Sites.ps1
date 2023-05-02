@@ -3,8 +3,8 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.2
-# Date:        24.01.2023
+# Version:     1.1.0
+# Date:        01.05.2023
 #
 # Description:
 # Creates Analytics Reports for SPO Sites and saves it to Azure Blob Storage
@@ -13,6 +13,7 @@
 # 1.0.0 - Initial creation of the Script
 # 1.0.1 - Saves the CSV file to SPO Document Library
 # 1.0.2 - Saves the CSV file to Azure Blob Storage und sends a message to Teams
+# 1.1.0 - Add Likes and Comments to report
 #
 # References:
 #
@@ -121,7 +122,7 @@ foreach ($Site in $Sites) {
         if ($IsSubsite) {
             $SubSiteId = (Get-PnPWeb -Includes Id).Id
         }
-        $ListId = (Get-PnPList -Includes Id -Identity "Site Pages").Id
+        $PagesListId = (Get-PnPList -Includes Id -Identity "Site Pages").Id
     }
     catch {
         Write-BasicAdaptiveCard -ChannelHookURI $ErrorChannelHookURI -ErrorMessage $_.Exception.Message
@@ -134,10 +135,10 @@ foreach ($Site in $Sites) {
         if ($IsSubsite) {
             Write-Warning "The $Site is a subsite. Analytics API is not supported for subsites. Continuing with the next site."
             continue
-            # $Pages = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/sites/$SubSiteId/lists/$ListId/items/?`$select=webUrl, createdDateTime, sharepointIds"
+            # $Pages = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/sites/$SubSiteId/lists/$PagesListId/items/?`$select=webUrl, createdDateTime, sharepointIds"
         }
         else {
-            $Pages = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/lists/$ListId/items/?`$select=webUrl, createdDateTime, sharepointIds" -OutputType PSObject
+            $Pages = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/lists/$PagesListId/items/?`$select=webUrl, createdDateTime, sharepointIds" -OutputType PSObject
         }
             
         $ReportItems = @()
@@ -166,10 +167,10 @@ foreach ($Site in $Sites) {
             if ($IsSubsite) {
                 Write-Warning "The $Site is a subsite. Analytics API is not supported for subsites. Continuing with the next site."
                 continue
-                # $AnalyticsData = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/sites/$SubSiteId/lists/$ListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime', endDateTime='$EndTime', interval='day')"
+                # $AnalyticsData = Invoke-RestMethod -Headers @{Authorization = "Bearer $GraphAccessToken" } -Uri "https://graph.microsoft.com/v1.0/sites/$SiteID/sites/$SubSiteId/lists/$PagesListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime', endDateTime='$EndTime', interval='day')"
             }
             else {
-                $AnalyticsData = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/lists/$ListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime', endDateTime='$EndTime', interval='day')" -OutputType PSObject
+                $AnalyticsData = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/sites/$SiteId/lists/$PagesListId/items/$($ReportItem.ListItemUniqueId)/getActivitiesByInterval(startDateTime='$StartTime', endDateTime='$EndTime', interval='day')" -OutputType PSObject
             }
                     
             # Sum up the analytics for the page
@@ -178,9 +179,15 @@ foreach ($Site in $Sites) {
                 $TotalUniqueViewers += $Analytics.access.actorCount
                 $TotalTimeSpentInSeconds += $Analytics.access.timeSpentInSeconds
             }
+
+            # Get Social Data for the Page
+            $PageSocialInfo = Get-SocialData -UniqueId $($ReportItem.ListItemUniqueId) -PagesListId $PagesListId
+
             $ReportItem | Add-Member -MemberType NoteProperty -Name "TotalViews" -Value $TotalViews
             $ReportItem | Add-Member -MemberType NoteProperty -Name "TotalUniqueViewers" -Value $TotalUniqueViewers
             $ReportItem | Add-Member -MemberType NoteProperty -Name "TotalTimeSpentInSeconds" -Value $TotalTimeSpentInSeconds
+            $ReportItem | Add-Member -MemberType NoteProperty -Name "TotalLikes" -Value $PageSocialInfo.NumOfLikes
+            $ReportItem | Add-Member -MemberType NoteProperty -Name "TotalComments" -Value $PageSocialInfo.NumOfComments
         }
 
         Write-ListCard -ChannelHookURI $ChannelHookURI -List {
@@ -191,11 +198,11 @@ foreach ($Site in $Sites) {
 
         # Write the analytics to a CSV file
         if ($ReportCounter -eq 0) {
-            $ConsolidatedReport = ($ReportItems | Select-Object Site, Page, Created, TotalViews, TotalUniqueViewers | ConvertTo-Csv -Delimiter ',' -NoTypeInformation) -join "`n"
+            $ConsolidatedReport = ($ReportItems | Select-Object Site, Page, Created, TotalViews, TotalUniqueViewers, TotalLikes, TotalComments | ConvertTo-Csv -Delimiter ',' -NoTypeInformation) -join "`n"
         }
         else {
             $ConsolidatedReport += "`n"
-            $ReportItems = ($ReportItems | Select-Object Site, Page, Created, TotalViews, TotalUniqueViewers | ConvertTo-Csv -Delimiter ',' -NoTypeInformation)
+            $ReportItems = ($ReportItems | Select-Object Site, Page, Created, TotalViews, TotalUniqueViewers, TotalLikes, TotalComments | ConvertTo-Csv -Delimiter ',' -NoTypeInformation)
             $ConsolidatedReport += ($ReportItems | Select-Object -Skip 1) -join "`n"
         }
         $ReportCounter++
@@ -206,6 +213,30 @@ foreach ($Site in $Sites) {
         Write-Error "Error getting the analytics for the pages in $Site : $_.Exception.Message"
         continue
     }
+}
+
+Function Get-SocialData {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]$PagesListId,
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]$UniqueId
+    )
+
+    $SitePagesGallery = Get-PnPList -Identity $PagesListId
+
+
+    $Page = Get-PnPListItem -List $SitePagesGallery -UniqueId $UniqueId -Fields "Title", "_CommentCount", "_LikeCount"
+
+    $SocialData = New-Object -TypeName psobject -Property @{
+        Title         = $Page.FieldValues["Title"]
+        NumOfComments = $Page.FieldValues["_CommentCount"]
+        NumOfLikes    = $Page.FieldValues["_LikeCount"]
+    }
+
+    return $SocialData
 }
 
 Disconnect-MgGraph
