@@ -45,7 +45,7 @@ New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffi
 #-------------------------------------------------------------#
 
 Function Connect-ByUserAccount() {
-    $AdminConnection = Connect-PnPOnline -Url $SiteUrl -Interactive
+    $AdminConnection = Connect-PnPOnline -Url $SiteUrl -Interactive -ReturnConnection
     return $AdminConnection
 }
 Function Connect-ByCertificate() {
