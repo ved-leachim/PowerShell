@@ -22,7 +22,7 @@
 # 
 #------------------------------------------------------------------------------#
 #--------------------Setup Configuration----------------------#
-$ErrorActionPreference = 'Continue' # Default -> Continue
+$ErrorActionPreference = 'Stop' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
 #-------------------------Constants---------------------------#
