@@ -3,12 +3,12 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        13.03.2023
 #
 # Description:
 # Grants a Service Principal (or AppReg) SPO specific App Permissions (Sites.Selected)
-# !! IMPORTANT: PnP.PowerShell uses the SharePoint API to grant permissions to the App und to the selected Site Collection !!
+# IMPORTANT: Admin App requires Permissions: Microsoft Graph API: Sites.FullControl.All
+# IMPORTANT: PnP.PowerShell v 2.1.1 has a bug - https://github.com/pnp/powershell/discussions/3040
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
@@ -22,7 +22,7 @@
 # 
 #------------------------------------------------------------------------------#
 #--------------------Setup Configuration----------------------#
-$ErrorActionPreference = 'Continue' # Default -> Continue
+$ErrorActionPreference = 'Stop' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
 #-------------------------Constants---------------------------#
@@ -30,14 +30,14 @@ New-Variable -Name TenantSuffix -Value ".onmicrosoft.com" -Option Constant
 New-Variable -Name SPOAdminUrlSuffix -Value ".sharepoint.com" -Option Constant
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
-$SiteUrl = "TARGET SITE URL" # Target Site URL
-$ClientAppId = "CLIENT APP ID" # Client ID of the Client App
-$ClientAppDisplayName = "CLIENT APP DN" # Display Name of the Client App
+$SiteUrl = "https://bernerfachhochschule.sharepoint.com/sites/ws-services-bfhrepairtool" # Target Site URL
+$ClientAppId = "26ed463a-ce35-4f96-9805-5cbd2918f703" # Client ID of the Client App
+$ClientAppDisplayName = "BFH-WSP-RepairTool" # Display Name of the Client App
 $Permissions = "Read" # Read, Write, FullControl (FullControl is not available as an initial permission for the App - can be updated later)
-$TenantPrefix = "TENANT PREFIX" # Tenant Prefix
+$TenantPrefix = "bernerfachhochschule" # Tenant Prefix
 # CERT-AUTHN
-$AdminAppId = "ADMIN APP ID" # CERT-AUTHN - Client ID of the Admin App
-$CertPath = "./CERT.pfx" # CERT-AUTHN - Path to the Certificate
+$AdminAppId = "dbf0a4c3-85ee-4f84-acce-9862cb9708ad" # CERT-AUTHN - Client ID of the Admin App
+$CertPath = "$PSScriptRoot/M365 Management.pfx" # CERT-AUTHN - Path to the Certificate
 #-------------------------------------------------------------#
 #-------------------Set composed Constants--------------------#
 New-Variable -Name TenantName -Value ($TenantPrefix + $TenantSuffix) -Option Constant
@@ -45,9 +45,10 @@ New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffi
 #-------------------------------------------------------------#
 
 Function Connect-ByUserAccount() {
-    $AdminConnection = Connect-PnPOnline -Url $SiteUrl -Interactive
+    $AdminConnection = Connect-PnPOnline -Url $SiteUrl -Interactive -ReturnConnection
     return $AdminConnection
 }
+
 Function Connect-ByCertificate() {
     $CertPassword = Read-Host -AsSecureString -Prompt "Enter Management Certificate Secret"
 
@@ -105,11 +106,12 @@ function Set-AppPermissions() {
     else {
         # Grant the App the Read or Write Permission
         Write-Host "Granting $Permissions Permission..."
-        Grant-PnPAzureADAppSitePermission @TargetSite -Permissions $Permissions -Verbose -Connection $AdminConnection
+        Grant-PnPAzureADAppSitePermission @TargetSite -Permissions Read -Verbose -Connection $AdminConnection
         Get-PnPAzureADAppSitePermission -Connection $AdminConnection
         Write-Host "Successfully granted $Permissions Permission!"
     }
 }
 
+# $AdminConnection = Connect-ByCertificate
 $AdminConnection = Connect-ByCertificate
 Set-AppPermissions -PnPAdminConnection $AdminConnection -Site $SiteUrl -DisplayName $ClientAppDisplayName -AppId $ClientAppId -Permissions $Permissions
