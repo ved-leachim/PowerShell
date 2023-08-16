@@ -7,8 +7,7 @@
 # Date:        13.03.2023
 #
 # Description:
-# Grants a Service Principal (or AppReg) SPO specific App Permissions (Sites.Selected)
-# !! IMPORTANT: PnP.PowerShell uses the SharePoint API to grant permissions to the App und to the selected Site Collection !!
+# Grants a Service Principal specific App Permissions using PnP.PowerShell Library.
 #
 # Verions:
 # 1.0.0 - Initial creation of the Script
