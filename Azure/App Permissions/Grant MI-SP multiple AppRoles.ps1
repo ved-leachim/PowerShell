@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------#
-# Filename:    Grant MI/SP multiple AppRoles.ps1
+# Filename:    Grant MI-SP multiple AppRoles.ps1
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG

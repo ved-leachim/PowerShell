@@ -3,14 +3,11 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        13.03.2023
 #
 # Description:
-# Grants a Service Principal specific App Permissions using PnP.PowerShell Library.
+# Grants a Service Principal specific AppRoles using PnP.PowerShell Library.
 #
-# Verions:
-# 1.0.0 - Initial creation of the Script
 #
 # References:
 # https://www.youtube.com/watch?v=pPfxHvugnTA
