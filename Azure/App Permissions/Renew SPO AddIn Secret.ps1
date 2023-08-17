@@ -22,6 +22,7 @@ $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #---------------------Variables to Change---------------------#
 $TenantName = "TENANT NAME" # Tenant Name (e.g. contoso.onmicrosoft.com)
 $ClientId = "CLIENT APP ID" # Client ID of the SPO AddIn SP
+$SecretName = "SECRET NAME" # Name of the new Secret
 $SecretLifetime = 1 # Lifetime of the new Secret in Years
 # CERT-AUTHN
 $AdminAppId = "ADMIN APP ID" # CERT-AUTHN - Client ID of the Admin App
@@ -65,7 +66,7 @@ Function Add-NewClientSecret() {
 
     $Params = @{
         PasswordCredential = @{
-            DisplayName = "QV-App Backend Secret"
+            DisplayName = $SecretName
             EndDateTime = (Get-Date).AddYears($SecretLifetime)
         }
     }
