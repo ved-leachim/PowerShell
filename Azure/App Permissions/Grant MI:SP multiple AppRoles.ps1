@@ -1,17 +1,13 @@
 
 #------------------------------------------------------------------------------#
-# Filename:    Grant_SP_APPRole_Permissions.ps1
+# Filename:    Grant MI/SP multiple AppRoles.ps1
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
-# Date:        04.12.2022
+# Date:        17.08.2023
 #
 # Description:
-# Grant a Service Principal AppRole permissions on another Azure AD Application / API (e.g. MS Graph)
-#
-# Verions:
-# 1.0.0 - Initial creation of the Script
+# Grant a Service Principal AppRole permissions on another Azure Resource
 #
 # References:
 # https://techcommunity.microsoft.com/t5/integrations-on-azure-blog/grant-graph-api-permission-to-managed-identity-object/ba-p/2792127
@@ -19,7 +15,6 @@
 # https://msendpointmgr.com/2021/07/02/managed-identities-in-azure-automation-powershell/
 #
 # Dependencies:
-# PowerShell Version 5.1 or higher
 # Microsoft Graph PowerShell Module
 # 
 #------------------------------------------------------------------------------#
@@ -28,17 +23,14 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Continue' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
-#-------------------------Constants---------------------------#
-#
-#-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
 $TenantID = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" # Tenant ID of the Azure AD Tenant
 $TargetAppId = "00000003-0000-0000-c000-000000000000" # The AppId which SP needs to get permissions on (e.g. Microsoft Graph)
 $APIPermissions = @("User.Read.All", "Group.Read.All", "GroupMember.Read.All") # The AppRole permissions that shall be granted to SP
-$SPDisplayName = "SP-App-Name" # The Display Name of the Service Principal
+$SPDisplayName = "SP-App-Name" # The Display Name of the MI/SP
 #-------------------------------------------------------------#
 
-function Grant-MSIAPIPermissions() {
+function Grant-MIAPIPermissions() {
     Param(
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string]$TenantId,
         [Parameter(Mandatory = $true)] [ValidateNotNullOrEmpty()] [string]$SPDisplayName,
@@ -49,10 +41,10 @@ function Grant-MSIAPIPermissions() {
     Process {
         Connect-MgGraph -TenantId $TenantId -Scopes "Application.Read.All, AppRoleAssignment.ReadWrite.All"
 
-        # Get Service Principal of Managed System Identity, that needs to be granted permissions
+        # Get Service Principal of Managed Identity, that needs to be granted permissions
         $SP = Get-MgServicePrincipal -Filter "displayName eq '$SpDisplayName'"
 
-        # Get Service Principal of App, on that the MSI needs to be granted permissions
+        # Get Service Principal of Resource, on which the MI/SP needs to be granted Roles
         $AppServicePrincipal = Get-MgServicePrincipal -Filter "AppId eq '$AppId'"
         # Get the AppRoles matching the APIPermissions
         $AppRoles = @()
@@ -72,4 +64,4 @@ function Grant-MSIAPIPermissions() {
     }
 }
 
-Grant-MSIAPIPermissions -TenantId $TenantId -SPDisplayName $SPDisplayName -AppId $TargetAppId -APIPermissions $APIPermissions
+Grant-MIAPIPermissions -TenantId $TenantId -SPDisplayName $SPDisplayName -AppId $TargetAppId -APIPermissions $APIPermissions
