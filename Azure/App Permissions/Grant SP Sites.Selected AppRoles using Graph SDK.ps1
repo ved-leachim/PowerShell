@@ -58,22 +58,37 @@ function Set-AppPermissions() {
     # Check if the AppRole is already assigned
     $SPAssignedRoles = Get-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ClientObjectId
 
-    Foreach ($AssignedRole in $SPAssignedRoles) {
-        if ($AssignedRole.AppRoleId -eq $GraphAppRole.Id) {
-            Write-Host "AppRole already assigned to Service Principal"
-        }
-        else {
-            Write-Host "AppRole not assigned to Service Principal"
-            Write-Host "Assigning AppRole to Service Principal..."
+    if ($null -eq $SPAssignedRoles) {
+        Write-Host "No AppRoles assigned to Service Principal"
+        Write-Host "Assigning AppRole to Service Principal..."
 
-            $AppRoleAssignment = @{
-                "principalId" = $ClientObjectId
-                "resourceId"  = $GraphApp.Id
-                "appRoleId"   = $GraphAppRole.Id
+        $AppRoleAssignment = @{
+            "principalId" = $ClientObjectId
+            "resourceId"  = $GraphApp.Id
+            "appRoleId"   = $GraphAppRole.Id
+        }
+        
+        # Grant the Service Principal Sites.Selected AppRole
+        New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ClientObjectId -BodyParameter $AppRoleAssignment
+    }
+    else {
+        Foreach ($AssignedRole in $SPAssignedRoles) {
+            if ($AssignedRole.AppRoleId -eq $GraphAppRole.Id) {
+                Write-Host "AppRole already assigned to Service Principal"
             }
-            
-            # Grant the Service Principal Sites.Selected AppRole
-            New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ClientObjectId -BodyParameter $AppRoleAssignment
+            else {
+                Write-Host "AppRole not assigned to Service Principal"
+                Write-Host "Assigning AppRole to Service Principal..."
+    
+                $AppRoleAssignment = @{
+                    "principalId" = $ClientObjectId
+                    "resourceId"  = $GraphApp.Id
+                    "appRoleId"   = $GraphAppRole.Id
+                }
+                
+                # Grant the Service Principal Sites.Selected AppRole
+                New-MgServicePrincipalAppRoleAssignment -ServicePrincipalId $ClientObjectId -BodyParameter $AppRoleAssignment
+            }
         }
     }
 
@@ -83,8 +98,8 @@ function Set-AppPermissions() {
         "DisplayName" = $ClientAppDisplayName
     }
 
-    $PermissionId = New-MgSitePermission -SiteId $SiteId -Roles $SCPermissions -GrantedToIdentities @{"Application" = $Application }
-    Get-MgSitePermission -SiteId $SiteId -PermissionId $PermissionId | Format-List
+    New-MgSitePermission -SiteId $SiteId -Roles $SCPermissions -GrantedToIdentities @{"Application" = $Application }
+    Get-MgSitePermission -SiteId $SiteId | Format-List
 }
 
 Connect-ByUserAccount
