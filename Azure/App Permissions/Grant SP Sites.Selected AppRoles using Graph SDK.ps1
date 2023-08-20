@@ -6,7 +6,11 @@
 # Date:        16.08.2023
 #
 # Description:
-# Grants a Service Principal SPO specific AppRoles using the Graph SDK
+# Grants a Service Principal Graph specific AppRoles using the Graph SDK
+# Grants SC Permissions for a specific App
+#
+# Verions:
+# 1.0.0 - Initial creation of the Script
 #
 # References:
 # https://learningbydoing.cloud/blog/connecting-to-sharepoint-online-using-managed-identity-with-granular-access-permissions/
@@ -50,7 +54,7 @@ Function Connect-ByCertificate() {
     Connect-MgGraph @ConnectionArgs
 }
 
-function Set-AppPermissions() {
+function Grant-AppPermissions() {
 
     $GraphApp = Get-MgServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
     $GraphAppRole = $GraphApp.AppRoles | Where-Object Value -eq $GraphScope
@@ -91,7 +95,9 @@ function Set-AppPermissions() {
             }
         }
     }
+}
 
+Function Set-SCPermissions {
     $SiteId = $SPORootSiteUrl + ":/sites/" + $TargetSiteName + ":"
     $Application = @{
         "Id"          = $ClientAppId
@@ -103,4 +109,5 @@ function Set-AppPermissions() {
 }
 
 Connect-ByUserAccount
-Set-AppPermissions
+Grant-AppPermissions
+Set-SCPermissions
