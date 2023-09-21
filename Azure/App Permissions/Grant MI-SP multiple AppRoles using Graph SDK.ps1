@@ -7,7 +7,7 @@
 # Date:        17.08.2023
 #
 # Description:
-# Grant a Service Principal AppRole permissions on another Azure Resource
+# Grant a Service Principal AppRole permissions on another Resource
 #
 # References:
 # https://techcommunity.microsoft.com/t5/integrations-on-azure-blog/grant-graph-api-permission-to-managed-identity-object/ba-p/2792127
