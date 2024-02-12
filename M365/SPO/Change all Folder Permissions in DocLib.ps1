@@ -3,18 +3,11 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.1
 # Date:        22.02.2023
 #
 # Description:
 # Changes all the Folder Permissions in a Document Library (recursively or not)
 # according to the User/Group and Permission Level defined in the $Permissions
-#
-# Verions:
-# 1.0.0 - Initial creation of the Script
-# 1.0.1 - Added the possibility to remove permissions
-#
-# References:
 #
 # Dependencies:
 # Recommended: PowerShell Version 7.3.1

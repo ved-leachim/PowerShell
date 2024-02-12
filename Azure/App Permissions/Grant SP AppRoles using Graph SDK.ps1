@@ -8,9 +8,6 @@
 # Description:
 # Grants a Service Principal Graph specific AppRoles using the Graph SDK
 #
-# Verions:
-# 1.0.0 - Initial creation of the Script
-#
 # References:
 # https://learningbydoing.cloud/blog/connecting-to-sharepoint-online-using-managed-identity-with-granular-access-permissions/
 #

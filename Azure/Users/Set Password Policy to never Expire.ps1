@@ -3,15 +3,11 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        23.02.2023
 #
 # Description:
 # Set the password policy to never expire for an array of users
 # The Admin GUI only allows to set the policy for the entire Org
-#
-# Verions:
-# 1.0.0 - Initial creation of the script
 #
 # References:
 # https://m365scripts.com/microsoft365/set-office-365-users-password-to-never-expire-using-ms-graph-powershell/#:~:text=Set%20Password%20to%20Never%20Expire%20for%20a%20Single%20User%3A,use%20the%20Get%2DMgUser%20cmdlet.

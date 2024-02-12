@@ -3,14 +3,10 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        02.08.2023
 #
 # Description:
 # Get OneDrive Storage Report for specific Users (filtering user props)
-#
-# Verions:
-# 1.0.0 - Initial creation of the Script
 #
 # References:
 # https://office365itpros.com/2019/10/10/report-onedrive-business-storage/

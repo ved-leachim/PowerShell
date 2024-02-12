@@ -5,14 +5,10 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        10.03.2023
 #
 # Description:
 # Remove an array of users from all groups
-#
-# Verions:
-# 1.0.0 - Initial creation of the script
 #
 # References:
 #

@@ -3,16 +3,11 @@
 #
 # Author:      Michael Schmitz
 # Company:     Swissuccess AG
-# Version:     1.0.1
 # Date:        17.04.2023
 #
 # Description:
 # Removes a specific ServicePlan from an assigned LicensePlan
 # for specified Users or all Users with the specified LicensePlan assigned
-#
-# Verions:
-# 1.0.0 - Initial creation of the script
-# 1.0.1 - Fixing some variable names & improved logging (show progress)
 #
 # References:
 # https://learn.microsoft.com/en-us/microsoft-365/enterprise/assign-licenses-to-user-accounts-with-microsoft-365-powershell?view=o365-worldwide

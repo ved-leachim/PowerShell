@@ -3,14 +3,10 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Version:     1.0.0
 # Date:        13.03.2023
 #
 # Description:
 # Tests if the Permissions set by Grant SP SPO Graph Permissions AdminApp.ps1 are working
-#
-# Verions:
-# 1.0.0 - Initial creation of the Script
 #
 # References:
 # https://www.youtube.com/watch?v=pPfxHvugnTA
