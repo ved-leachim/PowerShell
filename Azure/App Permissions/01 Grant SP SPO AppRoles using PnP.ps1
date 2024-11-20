@@ -3,10 +3,11 @@
 #
 # Author:      Michael Schmitz 
 # Company:     Swissuccess AG
-# Date:        13.03.2023
+# Date:        20.11.2024
 #
 # Description:
 # Grants a Service Principal specific AppRoles using PnP.PowerShell Library.
+# These commands need MS Graph Sites.FullControl.All Permissions
 #
 #
 # References:
@@ -22,8 +23,8 @@ $ErrorActionPreference = 'Stop' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
 #-------------------------Constants---------------------------#
-New-Variable -Name TenantSuffix -Value ".onmicrosoft.com" -Option Constant
-New-Variable -Name SPOAdminUrlSuffix -Value ".sharepoint.com" -Option Constant
+#New-Variable -Name TenantSuffix -Value ".onmicrosoft.com" -Option Constant
+#New-Variable -Name SPOAdminUrlSuffix -Value ".sharepoint.com" -Option Constant
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
 $SiteUrl = "TARGET SITE URL" # Target Site URL
@@ -36,14 +37,10 @@ $AdminAppId = "ADMIN APP ID" # CERT-AUTHN - Client ID of the Admin App
 $CertPath = "./CERT.pfx" # CERT-AUTHN - Path to the Certificate
 #-------------------------------------------------------------#
 #-------------------Set composed Constants--------------------#
-New-Variable -Name TenantName -Value ($TenantPrefix + $TenantSuffix) -Option Constant
-New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffix) -Option Constant
+#New-Variable -Name TenantName -Value ($TenantPrefix + $TenantSuffix) -Option Constant
+#New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffix) -Option Constant
 #-------------------------------------------------------------#
 
-Function Connect-ByUserAccount() {
-    $AdminConnection = Connect-PnPOnline -Url $SiteUrl -Interactive -ReturnConnection
-    return $AdminConnection
-}
 Function Connect-ByCertificate() {
     $CertPassword = Read-Host -AsSecureString -Prompt "Enter Management Certificate Secret"
 
