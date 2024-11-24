@@ -23,8 +23,8 @@ $ErrorActionPreference = 'Stop' # Default -> Continue
 $VerbosePreference = 'SilentlyContinue' # Default -> SilentlyContinue
 #-------------------------------------------------------------#
 #-------------------------Constants---------------------------#
-#New-Variable -Name TenantSuffix -Value ".onmicrosoft.com" -Option Constant
-#New-Variable -Name SPOAdminUrlSuffix -Value ".sharepoint.com" -Option Constant
+New-Variable -Name TenantSuffix -Value ".onmicrosoft.com" -Option Constant
+New-Variable -Name SPOAdminUrlSuffix -Value ".sharepoint.com" -Option Constant
 #-------------------------------------------------------------#
 #---------------------Variables to Change---------------------#
 $SiteUrl = "TARGET SITE URL" # Target Site URL
@@ -37,8 +37,8 @@ $AdminAppId = "ADMIN APP ID" # CERT-AUTHN - Client ID of the Admin App
 $CertPath = "./CERT.pfx" # CERT-AUTHN - Path to the Certificate
 #-------------------------------------------------------------#
 #-------------------Set composed Constants--------------------#
-#New-Variable -Name TenantName -Value ($TenantPrefix + $TenantSuffix) -Option Constant
-#New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffix) -Option Constant
+New-Variable -Name TenantName -Value ($TenantPrefix + $TenantSuffix) -Option Constant
+New-Variable -Name SPOUrl -Value ("https://" + $TenantPrefix + $SPOAdminUrlSuffix) -Option Constant
 #-------------------------------------------------------------#
 
 Function Connect-ByCertificate() {
